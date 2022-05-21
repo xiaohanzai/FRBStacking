@@ -95,6 +95,6 @@ def get_model_DMexc(Mhalos, b2Rvirs, model_name):
             inds_bs[i] = np.argmin(np.abs(b - model_bs))
         model_DMexcs = np.load(base_path+'CGMBrush_models/'+model_name)[(inds_Mhalo, inds_bs)]
     else:
-        model_DMexcs = DMs*0. + model_name # const DM excess; input a number
+        model_DMexcs = Mhalos*0. + model_name # const DM excess; input a number
     return model_DMexcs
 

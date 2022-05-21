@@ -60,14 +60,29 @@ def calc_bs_1gal(cat_frb, inds_frb, cat_galaxy, ind_gal, divide_Rvir=True):
     return bs
 
 
-def calc_bs_allgals(cat_frb, cat_galaxy, cat, divide_Rvir=True):
+def extract_arr_from_cat(cat, qname, cat_frb=None, cat_galaxy=None):
     '''
-    Given galaxy-FRB pairs (input as a dict cat), return the impact parameters of all FRBs.
+    Form an array of quantities out of the catalog of gal-FRB pairs.  Will be used in chi^2 calculation.
+    qname should be key of cat_frb or cat_galaxy.
+    Input either cat_frb or cat_galaxy to extract corresponding quantities.
     '''
-    bs = []
-    DMs = []
-    for ind_gal in cat:
-        bs = np.append(bs, calc_bs_1gal(cat_frb, cat[ind_gal], cat_galaxy, ind_gal, divide_Rvir=divide_Rvir))
-        DMs = np.append(DMs, cat_frb['dm_exc_ne2001'].values[cat[ind_gal]])
-    return bs, DMs
+    qs = []
+    if cat_frb is not None: # extract from FRB catalog
+        for ind_gal in cat:
+            qs = np.append(qs, cat_frb[qname].values[cat[ind_gal]])
+    else:
+        for ind_gal in cat:
+            qs = np.append(qs, [cat_galaxy[qname][ind_gal]]*len(cat[ind_gal]))
+    return qs
+
+
+def calc_bs(gal_RAs, gal_Decs, gal_dists, frb_RAs, frb_Decs):
+    '''
+    Given arrays of galaxy RA Dec distance Rvir, and FRB RA Dec, calculate the impact parameter normalized to the virial radii.  Better used after extract_arr_from_cat().
+    '''
+    c_frbs = SkyCoord(ra=frb_RAs*u.degree, dec=frb_Decs*u.degree)
+    c_gals = SkyCoord(ra=gal_RAs*u.degree, dec=gal_Decs*u.degree)
+    thetas = c_gals.separation(c_frbs)
+    bs = np.sin(thetas)*gal_dists
+    return bs
 
