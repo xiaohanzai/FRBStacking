@@ -111,3 +111,15 @@ def vis_ws_and_wavg(DMs, alpha, beta, c, ax=None):
     ax.set_xlabel('DM', fontsize=15)
     ax.set_ylabel('# in bin x weight', fontsize=15)
 
+
+def vis_chi2_pdf(chi2s_bin, label, ax=None, color=['tab:blue', 'tab:orange', 'tab:green'], bin_edges=None):
+    if ax is None:
+        ax = plt.gca()
+    ax.hist(chi2s_bin, bins=bin_edges, label=label, linewidth=2, histtype='step', density=True, color=color)
+
+
+def vis_chi2_val(chi2, label, ax=None, ylim=[0, 1], color='k', linestyle='-'):
+    if ax is None:
+        ax = plt.gca()
+    ax.plot([chi2, chi2], ylim, label=label, linewidth=2, color=color, linestyle=linestyle)
+

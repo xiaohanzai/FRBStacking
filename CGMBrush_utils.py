@@ -7,7 +7,7 @@ cosmology.setCosmology('planck18')
 base_path = '/Users/xiaohan/Documents/research/FRB_ConnorRavi/codes/mycodes/'
 
 # CGMBrush parameters
-model_bs = np.load(base_path+'CGMBrush_models/radial_distance_kpc_res32k.npy') # kpc
+model_bs = np.load(base_path+'CGMBrush_models/radial_distance_kpc_res32k.npy')/1e3 # Mpc
 model_Mhalos = np.array([1.56841908e+10, 1.89760516e+10, 2.28185389e+10, 2.76090821e+10,
  3.34125995e+10, 4.03236319e+10, 4.87132348e+10, 5.88023286e+10,
  7.10435765e+10, 8.57589215e+10, 1.03574743e+11, 1.25102577e+11,
@@ -32,7 +32,7 @@ model_Rvirs = np.array([0.06546749, 0.06976007, 0.0741824,  0.07904765, 0.084238
  0.63060985, 0.67126979, 0.71556874, 0.76175196, 0.81173845, 0.86187447,
  0.92013774, 0.97813931, 1.04377766, 1.10916985, 1.18419642, 1.26043577,
  1.34371595, 1.42244619, 1.51698257, 1.60639637, 1.71814589, 1.82849037,
- 1.95926486, 2.06484768, 0.,         2.30102145, 0.,         2.68123239])*1e3 # kpc
+ 1.95926486, 2.06484768, 0.,         2.30102145, 0.,         2.68123239]) # Mpc
 
 # used for generating mock data
 model_Mhalo_weights = mass_function.massFunction(model_Mhalos.clip(1e9)*0.67, 0, q_in='M', q_out='dndlnM', model = 'sheth99')
@@ -77,24 +77,37 @@ def gen_mock_data(n_frb, model_name, mockDMs=None, Mhalo_min=None, Mhalo_max=Non
         DMexcs += model_name # const DM excess; input a number
     for i in range(n_frb):
         DMs[i] += DMexcs[i]
-    return Mhalos, bs/Rvirs, DMs, DMexcs
+    return Mhalos, bs, DMs, DMexcs # convert b to Mpc
 
 
-def get_model_DMexc(Mhalos, b2Rvirs, model_name):
+def get_q_inds(qs, qname):
     '''
-    Input the Mhalos and b2Rvirs, find the model predicted DM excess.
+    Get the nearest indicies of an array of halo masses or impact parameters.  qname should indicate which quantity.
+    '''
+    inds = np.zeros(len(qs), dtype=int)
+    for i in range(len(qs)):
+        if qname == 'Mhalo':
+            ind = np.argmin(np.abs(np.log10(qs[i]) - np.log10(model_Mhalos.clip(1e-6))))
+        else: # b
+            ind = np.argmin(np.abs(qs[i] - model_bs))
+        inds[i] = ind
+    return inds
+
+
+def get_model_DMexc(Mhalos=None, bs=None, model_name=0., inds_Mhalo=None, inds_b=None):
+    '''
+    Input either the Mhalos and bs, or the indices of Mhalos and bs, find the model predicted DM excess.
     model_name is name of the model to be evaluated.  If input a number, interpret as const DM excess.
     '''
     if type(model_name) == str:
-        inds_Mhalo = np.zeros(len(Mhalos), dtype=int)
-        inds_bs = np.zeros(len(Mhalos), dtype=int)
-        for i in range(len(Mhalos)):
-            ind = np.argmin(np.abs(np.log10(Mhalos[i]) - np.log10(model_Mhalos.clip(1e-6))))
-            inds_Mhalo[i] = ind
-            b = b2Rvirs[i]*model_Rvirs[ind]
-            inds_bs[i] = np.argmin(np.abs(b - model_bs))
-        model_DMexcs = np.load(base_path+'CGMBrush_models/'+model_name)[(inds_Mhalo, inds_bs)]
+        if inds_Mhalo is None:
+            inds_Mhalo = get_q_inds(Mhalos, 'Mhalo')
+            inds_b = get_q_inds(bs, 'b')
+        model_DMexcs = np.load(base_path+'CGMBrush_models/'+model_name)[(inds_Mhalo, inds_b)]
     else:
-        model_DMexcs = Mhalos*0. + model_name # const DM excess; input a number
+        tmp = Mhalos
+        if Mhalos is None:
+            tmp = inds_Mhalo
+        model_DMexcs = tmp*0. + model_name # const DM excess; input a number
     return model_DMexcs
 
