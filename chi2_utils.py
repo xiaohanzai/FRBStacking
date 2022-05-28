@@ -1,4 +1,5 @@
 import numpy as np
+from FRB_utils import weighting_function
 
 
 def calc_chi2_normalization(n_frb, DMs, alpha, beta):

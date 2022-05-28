@@ -32,6 +32,20 @@ def build_gal_FRB_pairs(cat_galaxy, ii_halo, cat_frb, b_thres, build_cat=False):
     return ii_frb, cat
 
 
+def build_reversed_cat(cat):
+    '''
+    The dict returned by build_gal_FRB_pairs() uses gal indices as keys and FRB indices as values.  When doing chi^2 calculation I'm going to need the FRBs as keys and galaxies as values.  This function creates the reversed dict given the gal-FRB dict.
+    '''
+    cat_rev = {}
+    for ind_gal in cat:
+        for ind_frb in cat[ind_gal]:
+            if ind_frb in cat_rev:
+                cat_rev[ind_frb].append(ind_gal)
+            else:
+                cat_rev[ind_frb] = [ind_gal]
+    return cat_rev
+
+
 def get_subcat(cat, ii_frb, cat_galaxy, col_name, col_min, col_max):
     '''
     Given a dict of gal-FRB pairs, return the sub-catalog where the column of cat_galaxy is bounded by col_min, col_max.
@@ -58,22 +72,6 @@ def calc_bs_1gal(cat_frb, inds_frb, cat_galaxy, ind_gal, divide_Rvir=True):
         Rvir = 0.25*(cat_galaxy['Mhalo'][ind_gal]/1.3e12)**(1/3)
         bs /= Rvir
     return bs
-
-
-def extract_arr_from_cat(cat, qname, cat_frb=None, cat_galaxy=None):
-    '''
-    Form an array of quantities out of the catalog of gal-FRB pairs.  Will be used in chi^2 calculation.
-    qname should be key of cat_frb or cat_galaxy.
-    Input either cat_frb or cat_galaxy to extract corresponding quantities.
-    '''
-    qs = []
-    if cat_frb is not None: # extract from FRB catalog
-        for ind_gal in cat:
-            qs = np.append(qs, cat_frb[qname].values[cat[ind_gal]])
-    else:
-        for ind_gal in cat:
-            qs = np.append(qs, [cat_galaxy[qname][ind_gal]]*len(cat[ind_gal]))
-    return qs
 
 
 def calc_bs(gal_RAs, gal_Decs, gal_dists, frb_RAs, frb_Decs):

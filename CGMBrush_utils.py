@@ -4,10 +4,10 @@ from colossus.cosmology import cosmology
 from colossus.lss import mass_function
 cosmology.setCosmology('planck18')
 
-base_path = '/Users/xiaohan/Documents/research/FRB_ConnorRavi/codes/mycodes/'
+base_path = '/Users/xiaohan/Documents/research/FRB_ConnorRavi/codes/mycodes/CGMBrush_models/'
 
 # CGMBrush parameters
-model_bs = np.load(base_path+'CGMBrush_models/radial_distance_kpc_res32k.npy')/1e3 # Mpc
+model_bs = np.load(base_path+'radial_distance_kpc_res32k.npy')/1e3 # Mpc
 model_Mhalos = np.array([1.56841908e+10, 1.89760516e+10, 2.28185389e+10, 2.76090821e+10,
  3.34125995e+10, 4.03236319e+10, 4.87132348e+10, 5.88023286e+10,
  7.10435765e+10, 8.57589215e+10, 1.03574743e+11, 1.25102577e+11,
@@ -70,7 +70,7 @@ def gen_mock_data(n_frb, model_name, mockDMs=None, Mhalo_min=None, Mhalo_max=Non
     # get excess DM and add to the base DM
     DMexcs = DMs*0.
     if type(model_name) == str:
-        model_DMexcs = np.load(base_path+'CGMBrush_models/'+model_name)[inds]
+        model_DMexcs = np.load(base_path+model_name)[inds]
         for i in range(n_frb):
             DMexcs[i] = model_DMexcs[i][np.argmin(np.abs(bs[i] - model_bs))]
     else:
@@ -88,7 +88,7 @@ def get_q_inds(qs, qname):
     for i in range(len(qs)):
         if qname == 'Mhalo':
             ind = np.argmin(np.abs(np.log10(qs[i]) - np.log10(model_Mhalos.clip(1e-6))))
-        else: # b
+        else: # b; we won't get out of the max model_bs
             ind = np.argmin(np.abs(qs[i] - model_bs))
         inds[i] = ind
     return inds
@@ -103,11 +103,32 @@ def get_model_DMexc(Mhalos=None, bs=None, model_name=0., inds_Mhalo=None, inds_b
         if inds_Mhalo is None:
             inds_Mhalo = get_q_inds(Mhalos, 'Mhalo')
             inds_b = get_q_inds(bs, 'b')
-        model_DMexcs = np.load(base_path+'CGMBrush_models/'+model_name)[(inds_Mhalo, inds_b)]
+        model_DMexcs = np.load(base_path+model_name)[(inds_Mhalo, inds_b)] - 81. # mean DM is 81 in CGMBrush
     else:
         tmp = Mhalos
         if Mhalos is None:
             tmp = inds_Mhalo
         model_DMexcs = tmp*0. + model_name # const DM excess; input a number
     return model_DMexcs
+
+
+def load_model_data(model_names):
+    '''
+    Model name(s) should be input up to e.g. "fire32_256_2022-04-04".  Will separate the one and two-halo terms and return both.
+    '''
+    if type(model_names) is not list:
+        model_names = [model_names]
+
+    model_datas = [None]*len(model_names)
+    for i in range(len(model_names)):
+        model_name = model_names[i]
+        if type(model_name) == str:
+            model_1halo = np.load(base_path+model_name+'_masks.npy')
+            model_2halo = np.load(base_path+model_name+'_DMvsR_prof.npy') - model_1halo - 81. # mean DM is 81 in CGMBrush
+        else: # input a number; const DM excess; no 2-halo term?
+            model_1halo = np.zeros((len(model_Mhalos), len(model_bs))) + model_name
+            model_2halo = model_1halo*0.
+        model_datas[i] = [model_1halo, model_2halo]
+
+    return model_datas
 
