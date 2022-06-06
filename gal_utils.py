@@ -6,6 +6,10 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table
 
 
+# halo virial radius based on halo mass
+calc_Rvir = lambda Mhalo: 0.25*(Mhalo/1.3e12)**(1/3)
+
+
 #Moster et al abundance matching relation: http://iopscience.iop.org/article/10.1088/0004-637X/710/2/903/pdf
 def logMstarfromlogMhalo(logMhalo):
     mM0 = 0.02820

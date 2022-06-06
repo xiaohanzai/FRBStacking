@@ -15,28 +15,34 @@ def extract_arr_from_cat(cat, qname, cat_frb=None, cat_galaxy=None):
     qname should be key of cat_frb or cat_galaxy.
     Input either cat_frb or cat_galaxy to extract corresponding quantities.
     '''
-    qs = []
+    qs = [0]
     if cat_frb is not None: # extract from FRB catalog
         for ind_frb in cat:
-            qs = np.append(qs, cat_frb[qname].values[ind_frb])
+            if qname == 'ind':
+                qs = np.append(qs, ind_frb)
+            else:
+                qs = np.append(qs, cat_frb[qname].values[ind_frb])
     else:
         for ind_frb in cat:
-            qs = np.append(qs, cat_galaxy[qname][cat[ind_frb]])
-    return qs
+            if qname == 'ind':
+                qs = np.append(qs, cat[ind_frb])
+            else:
+                qs = np.append(qs, cat_galaxy[qname][cat[ind_frb]])
+    return qs[1:]
 
 
 class CrossMatchedCat():
-    def __init__(self, cat):
+    def __init__(self, cat0, cat_galaxy, subcat_criteria):
         '''
-        cat is the dict of gal-FRB pairs.  For chi^2 we need the reversed dict.
+        cat0 is the dict of all gal-FRB pairs.  Input a dict containing the criteria to build subcat, e.g. {'Mhalo': [Mhalo_min, Mhalo_max]}.  For chi^2 we need the reversed dict.
         '''
-        self.cat = cat
-        self.cat_rev = build_reversed_cat(cat)
+        self.cat_rev = get_subcat_reversed(cat0, cat_galaxy, subcat_criteria)
+        self.subcat_criteria = subcat_criteria
 
         # total number of gal-FRB pairs
         self.n_pair = 0
-        for ind_gal in cat:
-            self.n_pair += len(cat[ind_gal])
+        for ind_frb in self.cat_rev:
+            self.n_pair += len(self.cat_rev[ind_frb])
 
     def _get_bounds(self):
         '''
@@ -82,6 +88,12 @@ class CrossMatchedCat():
         # used in chi^2 calculation
         self.inds_Mhalo = get_q_inds(self.Mhalos, 'Mhalo')
 
+        # which galaxies in the gal arrays are within the subcat we care about
+        gal_inds = extract_arr_from_cat(self.cat_rev, 'ind', cat_galaxy=cat_galaxy)
+        self.gal_is_in_subcat = np.zeros(len(self.gal_RAs), dtype=bool)
+        for i in range(len(gal_inds)):
+            self.gal_is_in_subcat[i] = is_subcat_criteria_met(gal_inds[i], cat_galaxy, self.subcat_criteria)
+
     def _perturb_FRB_RA_Dec(self):
         '''
         Called in chi^2 calculation.  Randomly perturb the FRB locations according to their localization errors and return the RA Dec values, with the array size the same as those of the galaxy arrays (see prep_arrs_for_chi2()).
@@ -104,10 +116,10 @@ class CrossMatchedCat():
         '''
         Called in calc_chi2_models() before chi^2 calculation to set up radial bins and the array of bin indicators, to speed up the calculations.
         '''
-        b2Rvirs = bs/(0.25*(self.Mhalos/1.3e12)**(1/3))
+        b2Rvirs = bs/calc_Rvir(self.Mhalos)
         iis_b2Rvir_bin = np.zeros((len(b2Rvir_bin_edges)-1,len(self.DMs)), dtype=bool)
         for i in range(len(b2Rvir_bin_edges)-1):
-            ii = (b2Rvirs > b2Rvir_bin_edges[i]) & (b2Rvirs < b2Rvir_bin_edges[i+1])
+            ii = (b2Rvirs > b2Rvir_bin_edges[i]) & (b2Rvirs < b2Rvir_bin_edges[i+1]) & (self.gal_is_in_subcat)
             iis_b2Rvir_bin[i][ii] = True
         return iis_b2Rvir_bin
 

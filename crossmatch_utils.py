@@ -46,18 +46,57 @@ def build_reversed_cat(cat):
     return cat_rev
 
 
-def get_subcat(cat, ii_frb, cat_galaxy, col_name, col_min, col_max):
+def is_subcat_criteria_met(ind_gal, cat_galaxy, subcat_criteria):
+    '''
+    Determine whether a galaxy meets the criteria to be put in sub-catalog.
+    '''
+    flag = True
+    for col_name in subcat_criteria:
+        col_val = cat_galaxy[col_name][ind_gal]
+        col_min, col_max = subcat_criteria[col_name]
+        if col_val < col_min or col_val > col_max:
+            flag = False
+            break
+    return flag
+
+
+def get_subcat(cat, ii_frb, cat_galaxy, subcat_criteria):
     '''
     Given a dict of gal-FRB pairs, return the sub-catalog where the column of cat_galaxy is bounded by col_min, col_max.
     '''
     cat_ = {}
     ii_frb_ = np.zeros_like(ii_frb)
-    for i in cat:
-        col_val = cat_galaxy[col_name][i]
-        if col_val > col_min and col_val < col_max:
-            cat_[i] = cat[i]
-            ii_frb_[cat[i]] = True
+    for ind_gal in cat:
+        if is_subcat_criteria_met(ind_gal, cat_galaxy, subcat_criteria):
+            cat_[ind_gal] = cat[ind_gal]
+            ii_frb_[cat[ind_gal]] = True
     return cat_, ii_frb_
+
+
+def get_subcat_reversed(cat, cat_galaxy, subcat_criteria):
+    '''
+    Build reversed sub-catalog.  Key is FRB index, value is list of **all** galaxy indices.
+    FRBs only include those of the subcat, e.g. bounded by halo mass.
+    This is used in chi^2 calculation because we need to calculate DM excess contributed by all halos.
+    '''
+    # get the indices of FRBs of the subcat first
+    inds_frb = [0] # just to make sure dtype is int
+    for ind_gal in cat:
+        if is_subcat_criteria_met(ind_gal, cat_galaxy, subcat_criteria):
+            inds_frb = np.append(inds_frb, cat[ind_gal])
+    inds_frb = inds_frb[1:]
+
+    # build reversed subcat
+    # initialize
+    cat_rev = {}
+    for ind_frb in inds_frb:
+        cat_rev[ind_frb] = []
+    # add in galaxy indices
+    for ind_gal in cat:
+        for ind_frb in cat[ind_gal]:
+            if ind_frb in inds_frb:
+                cat_rev[ind_frb].append(ind_gal)
+    return cat_rev
 
 
 def calc_bs_1gal(cat_frb, inds_frb, cat_galaxy, ind_gal, divide_Rvir=True):
