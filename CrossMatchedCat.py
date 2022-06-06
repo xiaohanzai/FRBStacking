@@ -145,19 +145,24 @@ class CrossMatchedCat():
         Calculate chi^2 for one model.
         '''
         model_DMexcs = self._calc_DMexcs(model_data, inds_b)
+        DMs = self.DMs - model_DMexcs # DM values without DM excess
+        # pick out FRBs with >0 DM
+        ii_DMpositive = DMs > 0.
+        for i in range(len(self.loc_arr)-1):
+            ii = ii_DMpositive[self.loc_arr[i]:self.loc_arr[i+1]]
+            if np.any(ii == False):
+                ii[:] = False
 
         # calculate chi2 in each radial bin
         n_bin = iis_b2Rvir_bin.shape[0]
         chi2s_bin = np.zeros(n_bin)
         n_pairs_bin = np.zeros(n_bin, dtype=int)
         for i in range(n_bin):
-            ii = iis_b2Rvir_bin[i]
+            ii = iis_b2Rvir_bin[i]*ii_DMpositive
             n_frb_bin = ii.sum()
             if n_frb_bin == 0:
                 continue
-            DMs_ = self.DMs[ii] - model_DMexcs[ii]
-            # need to remove negative DM FRBs
-            DMs_ = DMs_[DMs_ > 0.]
+            DMs_ = DMs[ii]
             meanDM_bin = np.average(DMs_, weights=weighting_function(DMs_, alpha, beta))
             chi2s_bin[i] = (meanDM_bin - meanDM_all)**2
             n_pairs_bin[i] = len(DMs_)
