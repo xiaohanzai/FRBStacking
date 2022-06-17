@@ -25,6 +25,6 @@ def calc_marginalized_chi2s(chi2s_bin):
     chi2s_bin should be the (normalized) Nxn_radial_bin array returned from Monte Carlo sampling over the localization contour.
     '''
     Ls = np.mean(np.exp(-chi2s_bin/2.), axis=0) # likelihood in each radial bin
-    L_tot = np.mean(np.exp(-chi2s_bin.sum(axis=1)/2.), axis=0) # summed over radial bins
+    L_tot = np.mean(np.exp(-chi2s_bin.sum(axis=1)/2.)) # summed over radial bins
     return -2*np.log(Ls), -2*np.log(L_tot)
 
