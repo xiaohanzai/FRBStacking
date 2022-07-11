@@ -3,13 +3,17 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 
 
-def build_gal_FRB_pairs(cat_galaxy, ii_halo, cat_frb, b_thres, build_cat=False):
+def build_gal_FRB_pairs(cat_galaxy, ii_halo, cat_frb, b_thres, b_thres_lo=None, build_cat=False):
     '''
     Build galaxy-FRB pairs by finding FRBs with b < b_thres, where b_thres can be an array.
+    If b_thres_lo is provided, do b_thres_lo < b < b_thres.
     ii_halo determines which galaxies to take into consideration.
     If build_cat, build a dict where keys = galaxy indices, values = FRB indices.
     '''
     c_gals = SkyCoord(ra=cat_galaxy['RAJ2000'][ii_halo]*u.degree, dec=cat_galaxy['DEJ2000'][ii_halo]*u.degree)
+
+    if b_thres_lo is None:
+        b_thres_lo = b_thres*0.
 
     cat = None
     if build_cat:
@@ -19,7 +23,7 @@ def build_gal_FRB_pairs(cat_galaxy, ii_halo, cat_frb, b_thres, build_cat=False):
     for i in range(len(cat_frb)):
         c_frb = SkyCoord(ra=cat_frb['ra'].values[i]*u.degree, dec=cat_frb['dec'].values[i]*u.degree)
         thetas = c_frb.separation(c_gals)
-        ii = (cat_galaxy['Dist'][ii_halo]*np.sin(thetas) < b_thres) & (thetas < 90.*u.degree)
+        ii = (cat_galaxy['Dist'][ii_halo]*np.sin(thetas) < b_thres) & (cat_galaxy['Dist'][ii_halo]*np.sin(thetas) > b_thres_lo) & (thetas < 90.*u.degree)
         if ii.sum()>0:
             ii_frb[i] = True
             if build_cat:

@@ -171,7 +171,7 @@ class CrossMatchedCat():
 
         return chi2s_bin, n_frbs_bin
 
-    def calc_chi2_models(self, model_names, alpha, beta, meanDM_all, b2Rvir_bin_edges, marginalize_loc_err=True, N=100000, use_pairs=False):
+    def calc_chi2_models(self, model_names, alpha, beta, meanDM_all, b2Rvir_bin_edges, marginalize_loc_err=True, N=10000, use_pairs=False):
         '''
         Calculate chi^2 for one or multiple models.  Can choose to marginalize over localization error or not.
         If marginalize, Monte Carlo N times.

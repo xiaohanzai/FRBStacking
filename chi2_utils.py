@@ -12,11 +12,9 @@ def calc_chi2_normalization(n_frb, DMs, alpha, beta):
     ws = weighting_function(DMs, alpha, beta)
     weighted_meanDM = np.average(DMs, weights=ws)
     N = 10000
-    rst = 0.
-    for i in range(N):
-        inds = np.random.choice(len(DMs), n_frb, replace=True)
-        rst += (np.average(DMs[inds], weights=ws[inds]) - weighted_meanDM)**2
-    return rst/N
+    inds = np.random.choice(len(DMs), (N, n_frb), replace=True)
+    rst = (np.average(DMs[inds], weights=ws[inds], axis=1) - weighted_meanDM)**2
+    return np.mean(rst)
 
 
 def calc_marginalized_chi2s(chi2s_bin):

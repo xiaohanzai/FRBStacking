@@ -53,10 +53,25 @@ def calc_DMexc_distribution(DMs, ws, n_frb, n_sample=10000):
     Given an array of DM values and their corresponding weights, sample n_frb values from the array n_sample times
       to get the distribution of the difference in the weighted-average DM.
     '''
-    diff_meanDMs = np.zeros(n_sample)
     meanDM = np.average(DMs, weights=ws)
-    for i in range(n_sample):
-        inds = np.random.choice(len(DMs), n_frb)
-        diff_meanDMs[i] = np.average(DMs[inds], weights=ws[inds]) - meanDM
+    inds = np.random.choice(len(DMs), (n_sample, n_frb))
+    diff_meanDMs = np.average(DMs[inds], weights=ws[inds], axis=1) - meanDM
     return diff_meanDMs
 
+
+def calc_DMexc_const(DMs1, alpha, beta, meanDM0):
+    '''
+    DMs1 is assumed to have a const DM excess.  meanDM0 is the weighted-average DM of the original sample.
+    Iterate until convergence on DMexc.
+    '''
+    DMexc = np.average(DMs1, weights=weighting_function(DMs1, alpha, beta)) - meanDM0
+    DMexc_new = np.average(DMs1, weights=weighting_function(DMs1-DMexc, alpha, beta)) - meanDM0
+    n_iter = 0
+    while np.abs(DMexc_new - DMexc) > 1e-3:
+        DMexc = DMexc_new
+        DMexc_new = np.average(DMs1, weights=weighting_function(DMs1-DMexc, alpha, beta)) - meanDM0
+        n_iter += 1
+        if n_iter > 1000:
+            print('not converged?')
+            break
+    return DMexc
