@@ -113,7 +113,7 @@ class CrossMatchedCat():
 
     def _set_radial_bins(self, bs, b2Rvir_bin_edges, use_pairs):
         '''
-        Called in calc_chi2_models() before chi^2 calculation to set up radial bins and the array of bin indicators, to speed up the calculations.
+        Called in set_radial_bins and then calc_chi2_models() before chi^2 calculation to set up radial bins and the array of bin indicators, to speed up the calculations.
         '''
         b2Rvirs = bs/calc_Rvir(self.Mhalos)
         _iis_b2Rvir_bin = np.zeros((len(b2Rvir_bin_edges)-1,len(self.gal_RAs)), dtype=bool)
@@ -128,6 +128,26 @@ class CrossMatchedCat():
         if not use_pairs:
             return iis_b2Rvir_bin
         return _iis_b2Rvir_bin
+
+    def set_radial_bins(self, b2Rvir_bin_edges, perturb=False, use_pairs=False, return_inds_b=False):
+        '''
+        Called in calc_chi2_models() before chi^2 calculation to set up radial bins and the array of bin indicators, to speed up the calculations.
+        Can also be called publicly.
+        '''
+        if not perturb:
+            # don't perturb RA Dec
+            frb_RAs = self._stretch_arr(self.frb_RAs)
+            frb_Decs = self._stretch_arr(self.frb_Decs)
+        else:
+            # perturb RA Dec
+            frb_RAs, frb_Decs = self._perturb_FRB_RA_Dec()
+        bs = calc_bs(self.gal_RAs, self.gal_Decs, self.gal_dists, frb_RAs, frb_Decs)
+        inds_b = get_q_inds(bs, 'b')
+        # determine radial bins
+        iis_b2Rvir_bin = self._set_radial_bins(bs, b2Rvir_bin_edges, use_pairs=use_pairs)
+        if return_inds_b:
+            return iis_b2Rvir_bin, inds_b
+        return iis_b2Rvir_bin
 
     def _calc_DMexcs(self, model_data, inds_b):
         '''
@@ -186,17 +206,12 @@ class CrossMatchedCat():
         chi2s_bin_ = np.zeros((N, len(model_datas), len(b2Rvir_bin_edges)-1)) # used to store chi^2 for all models
         n_frbs_bin_ = np.zeros((N, len(model_datas), len(b2Rvir_bin_edges)-1), dtype=int) # the number of FRBs in each bin
         for i in range(N):
+            perturb = True
             if i == 0:
                 # the first one don't perturb RA Dec
-                frb_RAs = self._stretch_arr(self.frb_RAs)
-                frb_Decs = self._stretch_arr(self.frb_Decs)
-            else:
-                # perturb RA Dec
-                frb_RAs, frb_Decs = self._perturb_FRB_RA_Dec()
-            bs = calc_bs(self.gal_RAs, self.gal_Decs, self.gal_dists, frb_RAs, frb_Decs)
-            inds_b = get_q_inds(bs, 'b')
-            # determine radial bins
-            iis_b2Rvir_bin = self._set_radial_bins(bs, b2Rvir_bin_edges, use_pairs=use_pairs)
+                perturb = False
+                # determine radial bins
+            iis_b2Rvir_bin, inds_b = self.set_radial_bins(b2Rvir_bin_edges, perturb=perturb, use_pairs=use_pairs, return_inds_b=True)
             # loop over models
             for j in range(len(model_datas)):
                 chi2s_bin_[i,j], n_frbs_bin_[i,j] = self._calc_chi2_model(model_datas[j], inds_b, alpha, beta, meanDM_all, iis_b2Rvir_bin, use_pairs=use_pairs)

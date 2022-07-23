@@ -36,16 +36,17 @@ def plot_gal(cat_galaxy, i, b, ax=None, c='b', markersize=5, label=None, linewid
         ax.plot(cs.ra[ii[-1]+1:], cs.dec[ii[-1]+1:], c, linewidth=linewidth)
 
 
-def vis_pdf_and_sigmas(DMs, ws, c, n_frb, ax=None, x_max=None, text=True, label=None):
+def vis_pdf_and_sigmas(DMs, ws, c, n_frb, ax=None, x_max=None, text=True, label=None, fac=1.):
     '''
     Plot the pdf of the weighted-mean DM (minus their weighted mean), sampling n_frb DM values from the DMs array.
     Also plot the one and two sigma locations.
     c is the color of the lines.
+    fac is the correction factor of the width of the distribution because of non-linear weighting.
     '''
     if ax is None:
         ax = plt.gca()
 
-    diff_meanDMs = calc_DMexc_distribution(DMs, ws, n_frb)
+    diff_meanDMs = calc_DMexc_distribution(DMs, ws, n_frb)/fac
 
     # plot Gaussian
     mu, sigma = np.mean(diff_meanDMs), np.std(diff_meanDMs)
@@ -73,7 +74,7 @@ def vis_pdf_and_sigmas(DMs, ws, c, n_frb, ax=None, x_max=None, text=True, label=
     return np.percentile(diff_meanDMs, [50-95/2,16,50,84,50+95/2])
 
 
-def vis_ws_and_wavg(DMs, alpha, beta, c, ax=None):
+def vis_ws_and_wavg(DMs, alpha, beta, c, ax=None, ax_in=None):
     '''
     A visualization of the number of 0 weights and whether we suppress high-DM FRBs well enough,
       given the weighting function parameters alpha beta.
@@ -107,7 +108,7 @@ def vis_ws_and_wavg(DMs, alpha, beta, c, ax=None):
 
     # histogram of the weights
     # we care about number of 0 weights
-    ax_in.hist(ws1/ws1.sum(), color=c, histtype='step', linewidth=2)
+    ax_in.hist(ws/ws.sum(), color=c, histtype='step', linewidth=2)
 
     ax.set_xlabel('DM', fontsize=15)
     ax.set_ylabel('# in bin x weight', fontsize=15)

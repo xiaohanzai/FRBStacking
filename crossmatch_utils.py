@@ -3,6 +3,22 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 
 
+def remove_FRBs_close_to_clusters(cat_galaxy, cat_frb, Mhalo_thres):
+    '''
+    Remove FRBs from cat_frb that fall within 1 Rvir of too massive galaxies.
+    Not necessarily clusters... input a halo mass threshold.
+    '''
+    inds_gal = np.where(cat_galaxy['Mhalo'] > Mhalo_thres)[0]
+    for ind_gal in inds_gal:
+        c_gal = SkyCoord(ra=cat_galaxy['RAJ2000'][ind_gal]*u.degree, dec=cat_galaxy['DEJ2000'][ind_gal]*u.degree)
+        c_frbs = SkyCoord(ra=cat_frb['ra'].values*u.degree, dec=cat_frb['dec'].values*u.degree)
+        thetas = c_gal.separation(c_frbs)
+        ii = (cat_galaxy['Dist'][ind_gal]*np.sin(thetas) < calc_Rvir(cat_galaxy['Mhalo'][ind_gal])) & (thetas < 90.*u.degree)
+        inds = np.linspace(0, len(cat_frb)-1, len(cat_frb), dtype=int)[~ii]
+        cat_frb = cat_frb[inds]
+    return cat_frb
+
+
 def build_gal_FRB_pairs(cat_galaxy, ii_halo, cat_frb, b_thres, b_thres_lo=None, build_cat=False):
     '''
     Build galaxy-FRB pairs by finding FRBs with b < b_thres, where b_thres can be an array.
