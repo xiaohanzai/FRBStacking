@@ -1,6 +1,7 @@
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+from gal_utils import calc_Rvir
 
 
 def remove_FRBs_close_to_clusters(cat_galaxy, cat_frb, Mhalo_thres):
@@ -15,7 +16,7 @@ def remove_FRBs_close_to_clusters(cat_galaxy, cat_frb, Mhalo_thres):
         thetas = c_gal.separation(c_frbs)
         ii = (cat_galaxy['Dist'][ind_gal]*np.sin(thetas) < calc_Rvir(cat_galaxy['Mhalo'][ind_gal])) & (thetas < 90.*u.degree)
         inds = np.linspace(0, len(cat_frb)-1, len(cat_frb), dtype=int)[~ii]
-        cat_frb = cat_frb[inds]
+        cat_frb = cat_frb.iloc[inds]
     return cat_frb
 
 

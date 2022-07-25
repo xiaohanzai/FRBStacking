@@ -24,77 +24,86 @@ def logMhalofromlogMstar(logMstar):
     return fsolve(sub, 12)[0] #center on 10^12 Msun halos
 
 
-def find_groups(cat_galaxy):
+def find_groups(cat_galaxy, method):
     '''
     Identify galaxy groups and remove the non-central galaxies from the catalog.
     '''
-    Rvirs = calc_Rvir(cat_galaxy['Mhalo'])
+    Rvirs = calc_Rvir(cat_galaxy['Mhalo']) # Mpc
+    vcs = (4.3e-9*cat_galaxy['Mhalo']/Rvirs)**0.5 # km/s
     c_gals = SkyCoord(ra=cat_galaxy['RAJ2000']*u.degree, dec=cat_galaxy['DEJ2000']*u.degree,
               distance=cat_galaxy['Dist']*u.Mpc)
     i = 0
     while i < len(cat_galaxy)-1:
         c_gal = c_gals[i]
-        # within 1 Rvir... and some percentage
-        inds_in = np.where(c_gal.separation_3d(c_gals).value < 1.2*Rvirs)[0]
-        if len(inds_in) == 1:
+        # find all galaxies more massive than this one
+        inds = np.where(Rvirs > Rvirs[i])[0]
+        if method == '3d distance':
+            inds_in = np.where(c_gal.separation_3d(c_gals[inds]).value < 1.2*Rvirs[inds])[0]
+        else:
+            # 2D distance within 1 Rvir... and some percentage
+            thetas = c_gal.separation(c_gals[inds])
+            if method == '2d+distance':
+                # consider radial distances error
+                ii = np.abs(cat_galaxy['Dist'][inds] - cat_galaxy['Dist'][i]) < \
+                    np.clip(cat_galaxy['e_Dist'][inds], cat_galaxy['e_Dist'][i], None)
+            else:
+                # velocity
+                ii = np.abs(cat_galaxy['RadialVelocity'][inds] - cat_galaxy['RadialVelocity'][i]) < \
+                    3*np.clip(vcs[inds], vcs[i], None)
+            inds_in = np.where(
+                (cat_galaxy['Dist'][inds]*np.sin(thetas) < 1.2*Rvirs[inds]) & (thetas < 90.*u.degree) & ii)[0]
+        if len(inds_in) == 0:
             i += 1
             continue
-        # set the most massive one as the central galaxy
-        ind_central = inds_in[np.argmax(Rvirs[inds_in])]
-        inds_in = inds_in[inds_in != ind_central]
-        cat_galaxy.remove_rows(inds_in)
-        Rvirs = np.delete(Rvirs, inds_in)
-        c_gals = np.delete(c_gals, inds_in)
-        if ind_central == i:
-            i += 1
+        # remove this galaxy
+        cat_galaxy.remove_row(i)
+        Rvirs = np.delete(Rvirs, i)
+        vcs = np.delete(vcs, i)
+        c_gals = np.delete(c_gals, i)
 
 
-def load_gals():
+def load_gals(load_all=False, method='3d distance'):
     '''
-    Load in galaxy catalog, indices to be used, and calculate halo masses.
-    The returned galaxy catalog does not contain the unused galaxies so indices differ from the original.
-    But inds_gal can be used to match things.
+    Load in galaxy catalog.
     '''
-    # indices of galaxies that we are interested in
-    inds_gal = np.loadtxt('gwgc_Mstar.txt')[:,0].astype(int)
+    if load_all:
+        data = np.loadtxt('gwgc_Mstar.txt')
+        # indices
+        inds_gal = data[:,0].astype(int)
+        # get data
+        with fits.open('gwgc_binary.fit') as f:
+            cat_gal = f[1].data[inds_gal]
+        # masses
+        logMstars = np.log10(data[:,1])
+        Mhalos = 10**np.array([logMhalofromlogMstar(i) for i in logMstars])
+        # known corrections
+        for pair in [['PGC086434', 1e10],
+                     ['NGC1599', 2e12],
+                     ['NGC1600', 1.01e12],
+                     ['IC0678', 1e10],
+                     ['NGC4377', 2.3e15]]:
+            name, Mhalo = pair
+            Mhalos[cat_gal['Name'] == name] = Mhalo
+        # make table
+        cat_galaxy = Table()
+        for key in cat_gal.columns.names:
+            cat_galaxy[key] = cat_gal[key]
+        cat_galaxy['Mhalo'] = Mhalos
+        cat_galaxy['Mstar'] = 10**logMstars
+        # remove too massive ones
+        cat_galaxy = cat_galaxy[cat_galaxy['Mhalo']<5e15]
+    else:
+        # see galaxy_catalog.ipynb for pre-processing
+        cat_galaxy = Table.read('cat_galaxy_>1e11.fits')
 
-    # load in galaxy catalog
-    with fits.open('gwgc_binary.fit') as f:
-        cat_gal = f[1].data[inds_gal]
-
-    # get halo masses
-    logMstars = np.log10(np.loadtxt('gwgc_Mstar.txt')[:,1])
-    Mhalos = 10**np.array([logMhalofromlogMstar(i) for i in logMstars])
-    # # M32 not considered(?)
-    # Mhalos[inds_gal == 885] = 0 # M32 should be removed in the find_groups() step
-
-    # put things into a new table
-    cat_galaxy = Table()
-    for key in cat_gal.columns.names:
-        cat_galaxy[key] = cat_gal[key]
-    cat_galaxy['Mhalo'] = Mhalos
-    cat_galaxy['Mstar'] = 10**logMstars
-
-    # get rid of too massive ones -- problematic
-    cat_galaxy = cat_galaxy[cat_galaxy['Mhalo']<5e15]
-
-    # known corrections... refer to GLADE+, even though they seem wrong
-    # I idenditied >1e13 galaxies that intersect FRBs and googled a bunch of them;
-    # NGC2256 and 2258 are in the MASSIVE survey
-    # NGC0741 (or IC1751?) and 1961 indeed seem very massive
-    for pair in [['PGC086434', 1e10],
-                 ['NGC1599', 2e12],
-                 ['NGC1600', 1.01e12],
-                 ['IC0678', 1e10],
-                 ['NGC4377', 2.3e15]]:
-        name, Mhalo = pair
-        cat_galaxy['Mhalo'][cat_galaxy['Name'] == name] = Mhalo
-
-    # take care of M33 when removing satellites of groups...
-    tmp = cat_galaxy[cat_galaxy['Name'] == 'NGC0598'].values()
-    find_groups(cat_galaxy)
-    if 'NGC0598' not in cat_galaxy['Name']:
-        cat_galaxy.add_row(tmp)
+    if method is not None:
+        # don't do group finding if method is None
+        # find groups and remove satellites
+        # take care of M33 when removing satellites of groups...
+        tmp = cat_galaxy[cat_galaxy['Name'] == 'NGC0598'].values()
+        find_groups(cat_galaxy, method)
+        if 'NGC0598' not in cat_galaxy['Name']:
+            cat_galaxy.add_row(tmp)
 
     return cat_galaxy
 
