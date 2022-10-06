@@ -36,7 +36,7 @@ def plot_gal(cat_galaxy, i, b, ax=None, c='b', markersize=5, label=None, linewid
         ax.plot(cs.ra[ii[-1]+1:], cs.dec[ii[-1]+1:], c, linewidth=linewidth)
 
 
-def vis_pdf_and_sigmas(DMs, ws, c, n_frb, ax=None, x_max=None, text=True, label=None, fac=1.):
+def vis_pdf_and_sigmas(DMs, ws, c, n_frb, meanDM=0., ax=None, text=True, label=None, fac=1.):
     '''
     Plot the pdf of the weighted-mean DM (minus their weighted mean), sampling n_frb DM values from the DMs array.
     Also plot the one and two sigma locations.
@@ -49,26 +49,37 @@ def vis_pdf_and_sigmas(DMs, ws, c, n_frb, ax=None, x_max=None, text=True, label=
     diff_meanDMs = calc_DMexc_distribution(DMs, ws, n_frb)/fac
 
     # plot Gaussian
-    mu, sigma = np.mean(diff_meanDMs), np.std(diff_meanDMs)
-    if x_max is None:
-        x_max = 4*sigma
-    x = np.linspace(0, x_max, 500)
+    sigma = np.std(diff_meanDMs)
+    mu = meanDM
+    if meanDM == 0.:
+        x = np.linspace(0, 400, 500)
+    else:
+        x = np.linspace(mu-3*sigma, mu+3*sigma, 500)
     y = np.exp(-((x-mu)/sigma)**2/2)
-    ax.plot(x, y, c, label=label, linewidth=2, linestyle='--')
+    ax.plot(x, y, c, label=label, linewidth=2)
 
     # plot one and two sigma location
-    onesigma, twosigma = np.percentile(diff_meanDMs, [84, 50+95/2.])
-    ind1 = np.argmin(np.abs(x-onesigma))
-    ind2 = np.argmin(np.abs(x-twosigma))
-    ax.fill_between(x[ind1:ind2], y[ind1:ind2], color=c, alpha=0.2)
-    ax.fill_between(x[ind2:], y[ind2:], color=c, alpha=0.5)
+    onesigmas = np.percentile(diff_meanDMs, [16, 84]) + meanDM
+    twosigmas = np.percentile(diff_meanDMs, [50-95/2, 50+95/2.]) + meanDM
+    ind1 = np.argmin(np.abs(x-onesigmas[0]))
+    ind2 = np.argmin(np.abs(x-onesigmas[1]))
+    ax.fill_between(x[ind1:ind2], y[ind1:ind2], color=c, alpha=0.5)
+    ind1_ = np.argmin(np.abs(x-twosigmas[0]))
+    ind2_ = np.argmin(np.abs(x-twosigmas[1]))
+    if meanDM != 0.:
+        ax.fill_between(x[ind1_:ind1], y[ind1_:ind1], color=c, alpha=0.2)
+    ax.fill_between(x[ind2:ind2_], y[ind2:ind2_], color=c, alpha=0.2)
     # label one and two sigma if need to
     if text:
-        if onesigma < x_max:
-            ax.text(onesigma+2, y[ind1], r'1-$\sigma$', color=c, fontsize=15,
+        if meanDM != 0.:
+            ax.text(onesigmas[0]-2, y[ind1], r'1-$\sigma$', color=c, fontsize=15,
+                horizontalalignment='right', verticalalignment='bottom')
+            ax.text(twosigmas[0]-2, y[ind1_], r'2-$\sigma$', color=c, fontsize=15,
+                horizontalalignment='right', verticalalignment='bottom')
+        else:
+            ax.text(onesigmas[1]+2, y[ind2], r'1-$\sigma$', color=c, fontsize=15,
                 horizontalalignment='left', verticalalignment='bottom')
-        if twosigma < x_max:
-            ax.text(twosigma+2, y[ind2], r'2-$\sigma$', color=c, fontsize=15,
+            ax.text(twosigmas[1]+2, y[ind2_], r'2-$\sigma$', color=c, fontsize=15,
                 horizontalalignment='left', verticalalignment='bottom')
 
     return np.percentile(diff_meanDMs, [50-95/2,16,50,84,50+95/2])

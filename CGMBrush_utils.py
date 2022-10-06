@@ -125,6 +125,7 @@ def load_model_data(model_names):
         if type(model_name) == str:
             model_1halo = np.load(base_path+model_name+'_masks.npy')
             model_2halo = np.load(base_path+model_name+'_DMvsR_prof.npy') - model_1halo - 81. # mean DM is 81 in CGMBrush
+            model_2halo[:,-1] = 0.
         else: # input a number; const DM excess; no 2-halo term?
             model_1halo = np.zeros((len(model_Mhalos), len(model_bs))) + model_name
             model_2halo = model_1halo*0.

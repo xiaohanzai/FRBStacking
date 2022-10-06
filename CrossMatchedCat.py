@@ -76,6 +76,7 @@ class CrossMatchedCat():
         self.gal_Decs = extract_arr_from_cat(self.cat_rev, 'DEJ2000', cat_galaxy=cat_galaxy)
         self.gal_dists = extract_arr_from_cat(self.cat_rev, 'Dist', cat_galaxy=cat_galaxy)
         self.Mhalos = extract_arr_from_cat(self.cat_rev, 'Mhalo', cat_galaxy=cat_galaxy)
+        self.Rvirs = calc_Rvir(self.Mhalos)
         # FRB arrays; these should have much shorter lengths
         self.frb_RAs = extract_arr_from_cat(self.cat_rev, 'ra', cat_frb=cat_frb)
         self.frb_Decs = extract_arr_from_cat(self.cat_rev, 'dec', cat_frb=cat_frb)
@@ -143,6 +144,7 @@ class CrossMatchedCat():
             frb_RAs, frb_Decs = self._perturb_FRB_RA_Dec()
         bs = calc_bs(self.gal_RAs, self.gal_Decs, self.gal_dists, frb_RAs, frb_Decs)
         inds_b = get_q_inds(bs, 'b')
+        inds_b[bs/self.Rvirs > 2.] = -1
         # determine radial bins
         iis_b2Rvir_bin = self._set_radial_bins(bs, b2Rvir_bin_edges, use_pairs=use_pairs)
         if return_inds_b:
@@ -161,7 +163,7 @@ class CrossMatchedCat():
             # add up the 1-halo terms
             DMexc = model_DMexcs_1halo[self.loc_arr[i]:self.loc_arr[i+1]].sum()
             # average the 2-halo terms
-            DMexc += np.mean(model_DMexcs_2halo[self.loc_arr[i]:self.loc_arr[i+1]])
+            DMexc += np.sum(model_DMexcs_2halo[self.loc_arr[i]:self.loc_arr[i+1]])
             model_DMexcs[i] = DMexc
         return model_DMexcs
 
