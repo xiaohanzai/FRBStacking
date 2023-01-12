@@ -1,4 +1,6 @@
 import numpy as np
+from gal_utils import calc_Rvir
+from crossmatch_utils import build_gal_FRB_pairs
 from astropy.table import Table
 from cfod import catalog
 
@@ -8,14 +10,37 @@ localized_list = ['20180924B', '20181112A', '20190102C', '20190523A', '20190608B
                   '20190611B', '20190614D', '20190714A', '20191001A', '20191228A']
 
 
-# def load_FRBs(gb_cut=5.):
-#     cat_frb_ = catalog.as_dataframe()
-#     inds_frb = np.where((cat_frb['repeater_name']=='-9999') & (cat_frb['sub_num']==0) &
-#                         (np.abs(cat_frb['gb'])>gb_cut))[0]
-#     cat_frb = Table()
-#     for key in cat_frb_.columns:
-#         cat_frb[key] = cat_frb_[key][inds_frb].values
-#     return cat_frb
+def load_FRBs(gb_cut=5., cat_galaxy=None, Mhalo_hi=1e14, remove_repeaters=True):
+    cat_frb = catalog.as_dataframe()
+
+    # remove sub-bursts of the same FRB
+    # also remove things too close to galactic plane
+    inds_frb = np.where((cat_frb['sub_num']==0) & \
+                        (np.abs(cat_frb['gb'])>gb_cut))[0]
+    cat_frb = cat_frb.iloc[inds_frb]
+
+    # decide whether or not to remove repeaters
+    if remove_repeaters:
+        cat_frb = cat_frb[cat_frb['repeater_name'] == '-9999']
+    else:
+        # remove redundant entries for repeaters
+        # they are all well localized; the DM values are very similar for each burst
+        names = cat_frb['repeater_name'][cat_frb['repeater_name']!='-9999'].values
+        while len(names)>0:
+            name = names[0]
+            inds = np.where(cat_frb['repeater_name'].values==name)[0][1:]
+            if len(inds)>0:
+                cat_frb = cat_frb.drop(cat_frb.index[inds])
+            names = names[names!=name]
+
+    # remove FRBs that intersect too massive galaxies at <1 Rvir
+    if cat_galaxy is not None:
+        ii_halo = cat_galaxy['Mhalo'] > Mhalo_hi
+        b_thres = calc_Rvir(cat_galaxy['Mhalo'][ii_halo])
+        ii_frb = build_gal_FRB_pairs(cat_galaxy, ii_halo, cat_frb, b_thres)[0]
+        cat_frb = cat_frb[~ii_frb]
+
+    return cat_frb
 
 
 def weighting_function(DMarr, alpha, beta):
