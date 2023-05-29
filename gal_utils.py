@@ -66,12 +66,13 @@ def load_gals(load_all=False, method='3d distance'):
     '''
     Load in galaxy catalog.
     '''
+    path = '/Users/xiaohan/Documents/research/FRB_ConnorRavi/work/'
     if load_all:
-        data = np.loadtxt('gwgc_Mstar.txt')
+        data = np.loadtxt(path+'gwgc_Mstar.txt')
         # indices
         inds_gal = data[:,0].astype(int)
         # get data
-        with fits.open('gwgc_binary.fit') as f:
+        with fits.open(path+'gwgc_binary.fits') as f:
             cat_gal = f[1].data[inds_gal]
         # masses
         logMstars = np.log10(data[:,1])
@@ -94,7 +95,7 @@ def load_gals(load_all=False, method='3d distance'):
         cat_galaxy = cat_galaxy[cat_galaxy['Mhalo']<5e15]
     else:
         # see galaxy_catalog.ipynb for pre-processing
-        cat_galaxy = Table.read('cat_galaxy_>1e11.fits')
+        cat_galaxy = Table.read(path+'cat_galaxy_>1e11.fits')
 
     if method is not None:
         # don't do group finding if method is None
